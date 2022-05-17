@@ -2,6 +2,7 @@ package com.jithin.coursemanagement.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jithin.coursemanagement.dto.StudentRegisterRequest;
+import com.jithin.coursemanagement.exceptions.UnAuthenticatedUser;
 import com.jithin.coursemanagement.models.CUser;
 import com.jithin.coursemanagement.models.Role;
 import com.jithin.coursemanagement.models.UserProfile;
@@ -25,9 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,6 +43,7 @@ class UserProfileControllerTest {
     public static final String VALID_GMAIL_COM = "valid@gmail.com";
     public static final String VALID_USERNAME1 = "valid username";
     private final ObjectMapper mapper = new ObjectMapper();
+    private final String VALID_USERNAME = "validUsername@gmail.com";
     @MockBean
     UserProfileService userProfileService;
     @MockBean
@@ -51,7 +55,6 @@ class UserProfileControllerTest {
     @MockBean
     private RoleService roleService;
     private BCryptPasswordEncoder passwordEncoder;
-    private final String VALID_USERNAME = "validUsername@gmail.com";
 
     @BeforeEach
     void setUp() {
@@ -79,7 +82,7 @@ class UserProfileControllerTest {
                 .andExpect(status().isUnauthorized());
 
         ArgumentCaptor<String> em = ArgumentCaptor.forClass(String.class);
-        verify(userService,times(1)).findUserByEmail(em.capture());
+        verify(userService, times(1)).findUserByEmail(em.capture());
     }
 
     @Test
@@ -137,7 +140,7 @@ class UserProfileControllerTest {
                         .accept(MediaType.APPLICATION_JSON)
                 )
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.username",is(VALID_USERNAME1)));
+                .andExpect(jsonPath("$.username", is(VALID_USERNAME1)));
         ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
         verify(userService, times(2)).findUserByEmail(ac.capture());
         ArgumentCaptor<String> rc = ArgumentCaptor.forClass(String.class);
@@ -146,11 +149,80 @@ class UserProfileControllerTest {
         verify(userProfileService, times(1)).create(uc.capture());
     }
 
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturnUnAuthorizedIfNoTokenGetProfiles() throws Exception {
+        try {
+            when(userService.findUserByEmail(anyString())).thenThrow(UnAuthenticatedUser.class);
+            mockMvc.perform(get(API_PROFILE + "/all").accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isUnauthorized());
+
+            ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
+            verify(userService, times(1)).findUserByEmail(ac.capture());
+
+        } catch (Exception e) {
+            System.out.println("exception is " + e.getLocalizedMessage());
+        }
+
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturnGetProfiles() throws Exception {
+        when(userService.findUserByEmail(anyString())).thenReturn(Optional.of(fakeUser()));
+        when(userProfileService.getProfileOfUser(anyLong())).thenReturn(fakeUserProfiles());
+        mockMvc.perform(get(API_PROFILE + "/all").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$",hasSize(5)));
+
+        ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
+        verify(userService, times(1)).findUserByEmail(ac.capture());
+        ArgumentCaptor<Long> lc = ArgumentCaptor.forClass(Long.class);
+        verify(userProfileService, times(1)).getProfileOfUser(lc.capture());
+
+    }
+
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturnUserProfileBy401Id() throws Exception {
+        try {
+            when(userService.findUserByEmail(anyString())).thenThrow(UnAuthenticatedUser.class);
+            mockMvc.perform(get(API_PROFILE + "/detail").accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isUnauthorized());
+
+            ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
+            verify(userService, times(1)).findUserByEmail(ac.capture());
+
+        } catch (Exception e) {
+            System.out.println("exception is " + e.getLocalizedMessage());
+        }
+
+    }
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturnUserProfileById() throws Exception {
+        try {
+            when(userService.findUserByEmail(anyString())).thenReturn(Optional.of(fakeUser()));
+            mockMvc.perform(get(API_PROFILE + "/detail").accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk());
+
+            ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
+            verify(userService, times(1)).findUserByEmail(ac.capture());
+        } catch (Exception e) {
+            System.out.println("exception is " + e.getLocalizedMessage());
+        }
+
+    }
+
+
     private List<UserProfile> fakeUserProfiles() {
         List<UserProfile> userProfiles = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             UserProfile u = new UserProfile();
             u.setUsername(VALID_USERNAME1);
+            u.setId((long) i);
+            u.setUser(new CUser());
             userProfiles.add(u);
         }
         return userProfiles;
@@ -167,6 +239,7 @@ class UserProfileControllerTest {
 
     private CUser fakeUser() {
         CUser user = new CUser();
+        user.setId(10L);
         user.setEmail(VALID_USERNAME);
         return user;
     }

@@ -24,6 +24,7 @@ public class UserProfile {
     @OneToOne
     private CUser user;
 
+
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JsonIgnore
