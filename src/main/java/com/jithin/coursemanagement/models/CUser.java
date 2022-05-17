@@ -7,14 +7,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Data
 public class CUser implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -23,11 +21,47 @@ public class CUser implements UserDetails {
 
     @NotBlank(message = "password is required field")
     private String password;
+    @Column(unique = true)
     @NotBlank(message = "email is required field")
     private String email;
 
     @ManyToMany(cascade = CascadeType.ALL,fetch = FetchType.EAGER)
     private Set<Role> roles = new HashSet<>();
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles;
+    }
+
+    public UserProfile getUserProfile() {
+        return userProfile;
+    }
+
+    public void setUserProfile(UserProfile userProfile) {
+        this.userProfile = userProfile;
+    }
+
+    @OneToOne(
+            fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL,
+            mappedBy = "user"
+    )
+    private UserProfile userProfile;
 
 
     @Override
@@ -35,6 +69,14 @@ public class CUser implements UserDetails {
         return roles.stream().map(
                 role -> new SimpleGrantedAuthority(role.getName())
         ).collect(Collectors.toList());
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     @Override
@@ -66,4 +108,6 @@ public class CUser implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+
 }

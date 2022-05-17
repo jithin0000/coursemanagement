@@ -14,7 +14,7 @@ public class JwtTokenUtil {
     public String getUserNameFromTheToken(String token){
         return Jwts.parser().setSigningKey(MYCOMPLE_XKEY_12489)
                 .parseClaimsJws(token)
-                .getBody().getSubject();
+                .getBody().get("username",String.class);
 
     }
     public String generateToken(String subject, HashMap<String, Object> map)
@@ -24,7 +24,8 @@ public class JwtTokenUtil {
                 .setClaims(map)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 123456 * 1000))
-                .signWith(SignatureAlgorithm.HS512,MYCOMPLE_XKEY_12489).compact();
+                .signWith(SignatureAlgorithm.HS512,MYCOMPLE_XKEY_12489)
+                .compact();
     }
     public boolean validateToken(String token){
         try {
